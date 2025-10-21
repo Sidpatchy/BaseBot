@@ -18,4 +18,4 @@ target
 
 # Gradle Files #
 .gradle/
-gradle/
+gradle/wrapper/gradle-wrapper.jar
