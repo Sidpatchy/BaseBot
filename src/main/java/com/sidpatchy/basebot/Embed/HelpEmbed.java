@@ -2,7 +2,7 @@ package com.sidpatchy.basebot.Embed;
 
 import com.sidpatchy.Robin.Discord.ParseCommands;
 import com.sidpatchy.basebot.Main;
-import org.javacord.api.entity.message.embed.EmbedBuilder;
+import net.dv8tion.jda.api.EmbedBuilder;
 
 import java.io.FileNotFoundException;
 import java.util.HashMap;
@@ -54,7 +54,7 @@ public class HelpEmbed {
                         .setColor(Main.getColor())
                         .setAuthor(commandName.toUpperCase())
                         .setDescription(allCommands.get(commandName).get("help"))
-                        .addField("Command", "Usage\n" + "```" + allCommands.get(commandName).get("usage") + "```");
+                        .addField("Command", "Usage\n" + "```" + allCommands.get(commandName).get("usage") + "```", false);
             }
         }
     }

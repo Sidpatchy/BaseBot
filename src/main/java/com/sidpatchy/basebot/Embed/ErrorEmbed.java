@@ -1,7 +1,7 @@
 package com.sidpatchy.basebot.Embed;
 
 import com.sidpatchy.basebot.Main;
-import org.javacord.api.entity.message.embed.EmbedBuilder;
+import net.dv8tion.jda.api.EmbedBuilder;
 
 public class ErrorEmbed {
 

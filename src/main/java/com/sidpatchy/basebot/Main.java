@@ -7,8 +7,11 @@ import com.sidpatchy.Robin.File.RobinConfiguration;
 import com.sidpatchy.basebot.Listener.SlashCommandCreate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.javacord.api.DiscordApi;
-import org.javacord.api.DiscordApiBuilder;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.sharding.DefaultShardManagerBuilder;
+import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.requests.GatewayIntent;
 
 import java.awt.*;
 import java.util.Arrays;
@@ -38,8 +41,11 @@ import java.util.Map;
  */
 public class Main {
 
-    // Discord API
-    private static DiscordApi api;
+    // Discord API (JDA)
+    private static ShardManager shardManager;
+    private static Integer currentShardCfg;
+    private static Integer totalShardsCfg;
+    private static String applicationId;
 
     private static final long startMillis = System.currentTimeMillis();
 
@@ -90,29 +96,35 @@ public class Main {
 
         extractParametersFromConfig(true);
 
-        api = DiscordLogin(token, current_shard, total_shards);
+        currentShardCfg = current_shard;
+        totalShardsCfg = total_shards;
+        shardManager = DiscordLogin(token, current_shard, total_shards);
 
-        if (api == null) {
+        if (shardManager == null) {
             System.exit(2);
         }
         else {
             logger.info("Successfully connected to Discord on shard " + current_shard + " with a total shard count of " + total_shards);
         }
 
-        // Set the bot's activity
-        api.updateActivity("BaseBot v1.0.0", video_url);
+        // Set the bot's activity (streaming if URL provided)
+        if (video_url != null && !video_url.isEmpty()) {
+            shardManager.setActivity(Activity.streaming("BaseBot v1.0.0", video_url));
+        } else {
+            shardManager.setActivity(Activity.playing("BaseBot v1.0.0"));
+        }
 
         // Register slash commands
         registerSlashCommands();
 
         // Register Command-related listeners
-        api.addSlashCommandCreateListener(new SlashCommandCreate());
+        shardManager.addEventListener(new SlashCommandCreate());
 
         logger.info("Done loading! (" + (System.currentTimeMillis() - startMillis) + "ms)");
     }
 
-    // Connect to Discord and create an API object
-    private static DiscordApi DiscordLogin(String token, Integer current_shard, Integer total_shards) {
+    // Connect to Discord and create a ShardManager
+    private static ShardManager DiscordLogin(String token, Integer current_shard, Integer total_shards) {
         if (token == null || token.isEmpty()) {
             logger.fatal("Token can't be null or empty. Check your config file!");
             System.exit(1);
@@ -125,12 +137,14 @@ public class Main {
         try {
             // Connect to Discord
             logger.info("Attempting discord login");
-            return new DiscordApiBuilder()
-                    .setToken(token)
-                    .setAllIntents()
-                    .setCurrentShard(current_shard)
-                    .setTotalShards(total_shards)
-                    .login().join();
+            DefaultShardManagerBuilder builder = DefaultShardManagerBuilder.createDefault(token);
+            builder.enableIntents(java.util.EnumSet.allOf(GatewayIntent.class));
+            builder.setShardsTotal(total_shards);
+            builder.setShards(current_shard);
+            ShardManager sm = builder.build();
+            // Cache application/bot id for error codes
+            applicationId = sm.getShards().isEmpty() ? "0" : String.valueOf(sm.getShards().get(0).getSelfUser().getIdLong());
+            return sm;
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -160,7 +174,7 @@ public class Main {
     // Handle the registry of slash commands and any errors associated.
     public static void registerSlashCommands() {
         try {
-            RegisterSlashCommands.RegisterSlashCommand(api);
+            RegisterSlashCommands.RegisterSlashCommand();
             logger.info("Slash commands registered successfully!");
         }
         catch (NullPointerException e) {
@@ -191,10 +205,10 @@ public class Main {
     public static Logger getLogger() { return logger; }
 
     public static String getErrorCode(String descriptor) {
-        return descriptor + ":" + api.getCurrentShard() + ":" + api.getTotalShards() + ":" + api.getClientId() + ":" + System.currentTimeMillis() / 1000L;
+        return descriptor + ":" + String.valueOf(currentShardCfg) + ":" + String.valueOf(totalShardsCfg) + ":" + applicationId + ":" + System.currentTimeMillis() / 1000L;
     }
 
-    public static DiscordApi getApi() { return api; }
+    public static ShardManager getShardManager() { return shardManager; }
 
     public static long getStartMillis() { return startMillis; }
 
